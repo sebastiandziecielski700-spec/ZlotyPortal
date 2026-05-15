@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Weryfikacja Biometryczna</title>
+    <style>
+        :root {
+            --primary-red: #ff3e3e;
+            --dark-bg: #0f172a; /* Zmieniłem na Twój granat dla spójności */
+            --card-bg: #1e293b;
+            --text-gray: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            background: var(--dark-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: white;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
+        /* Dekoracyjne tło */
+        .bg-glow {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+  
+
+        #instrukcja {
+            margin-bottom: 25px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #fff;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1/1; /* Kwadrat na telefonie wygląda lepiej */
+            border-radius: 24px;
+            overflow: hidden;
+            background: #000;
+            border: 2px solid #334155;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+            height: 70%;
+            border: 2px solid var(--primary-red);
+            border-radius: 20px;
+            box-shadow: 0 0 0 500px rgba(15, 23, 42, 0.6);
+            pointer-events: none;
+        }
+
+        .scanner-overlay::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary-red);
+            box-shadow: 0 0 20px var(--primary-red);
+            animation: scan 2.5s infinite ease-in-out;
+        }
+
+        @keyframes scan {
+            0% { top: 5%; opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { top: 95%; opacity: 0.2; }
+        }
+
+        .capture-btn {
+            margin-top: 35px;
+            padding: 20px;
+            width: 100%;
+            font-size: 1.1rem;
+            border-radius: 16px;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        .capture-btn:active { transform: scale(0.96); }
+
+        #status {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-gray);
+            font-weight: 500;
+        }
+
+        .mirror { transform: scaleX(-1); }
+
+        /* Loader */
+        .loader {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="bg-glow">
+    <div class="glow-1"></div>
+</div>
+
+<div class="container">
+    <div id="instrukcja">Krok 1: Pokaż dokument</div>
+    
+    <div class="video-wrapper">
+        <video id="video" autoplay playsinline></video>
+        <div id="overlay" class="scanner-overlay"></div>
+    </div>
+
+    <button class="capture-btn" id="btn" onclick="obslugaProcesu()">
+        <span id="btn-text">Zrób zdjęcie</span>
+    </button>
+    <div id="status">Inicjalizacja systemu...</div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const btn = document.getElementById('btn');
+    const btnText = document.getElementById('btn-text');
+    const instrukcja = document.getElementById('instrukcja');
+    const status = document.getElementById('status');
+    const overlay = document.getElementById('overlay');
+
+    let aktualnyEtap = "DOKUMENT"; 
+    let zapamietaneDane = null;
+    let obecnyStream = null;
+
+    // Funkcja zamiast alert() - nie blokuje kamery!
+    function pokazBlad(tresc) {
+        status.innerText = tresc;
+        status.style.color = "#ff3e3e";
+        status.style.fontWeight = "bold";
+        
+        // Powrót do normalnego koloru po 3 sekundach
+        setTimeout(() => {
+            status.style.color = "";
+            status.style.fontWeight = "";
+            if (!btn.disabled) status.innerText = "Spróbuj ponownie";
+        }, 3000);
+    }
+
+    async function startCamera(tryb) {
+        if (obecnyStream) {
+            obecnyStream.getTracks().forEach(track => track.stop());
+        }
+        const constraints = {
+            video: {
+                facingMode: tryb === "DOKUMENT" ? "environment" : "user",
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        };
+        try {
+            obecnyStream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.srcObject = obecnyStream;
+            video.classList.toggle('mirror', tryb === "TWARZ");
+            overlay.style.borderColor = tryb === "TWARZ" ? "#22c55e" : "#ff3e3e";
+            status.innerText = "Kamera aktywna";
+        } catch (err) {
+            pokazBlad("Błąd kamery!");
+        }
+    }
+
+    startCamera("DOKUMENT");
+
+    function obslugaProcesu() {
+        if (btn.disabled) return;
+        setLoading(true);
+
+        requestAnimationFrame(() => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            if (aktualnyEtap === "TWARZ") {
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+            }
+            ctx.drawImage(video, 0, 0);
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('zdjecie', blob, 'foto.jpg');
+
+                if (aktualnyEtap === "DOKUMENT") {
+                    status.innerText = "Analiza dokumentu...";
+                    await wyslijDokument(formData);
+                } else {
+                    status.innerText = "Weryfikacja twarzy...";
+                    formData.append('user_id', zapamietaneDane.user_id);
+                    formData.append('nazwisko', zapamietaneDane.nazwisko);
+                    await wyslijTwarz(formData);
+                }
+            }, 'image/jpeg', 0.8); 
+        });
+    }
+
+    function setLoading(isLoading) {
+        btn.disabled = isLoading;
+        btn.style.opacity = isLoading ? "0.6" : "1";
+        btnText.innerText = isLoading ? "Przetwarzanie..." : (aktualnyEtap === "DOKUMENT" ? "Zrób zdjęcie" : "Zweryfikuj twarz");
+    }
+
+    async function wyslijDokument(formData) {
+        try {
+            const response = await fetch("/sprawdz-dokument/", { method: "POST", body: formData });
+            const result = await response.json();
+
+            if (result.status === "OK") {
+                zapamietaneDane = result;
+                status.innerText = "DOKUMENT OK! Zmiana na selfie...";
+                setTimeout(() => {
+                    aktualnyEtap = "TWARZ";
+                    instrukcja.innerText = "Krok 2: Selfie";
+                    setLoading(false);
+                    startCamera("TWARZ");
+                }, 1000);
+            } else {
+                // ZAMIAST ALERTU
+                pokazBlad("Błąd: " + (result.message || "Brak użytkownika"));
+                setLoading(false);
+            }
+        } catch (err) {
+            pokazBlad("Błąd połączenia");
+            setLoading(false);
+        }
+    }
+
+    async function wyslijTwarz(formData) {
+        try {
+            const response = await fetch("/sprawdz-twarz/", { method: "POST", body: formData });
+            const result = await response.json();
+
+            if (result.status === "SUCCESS") {
+                status.innerText = "SUKCES! Przekierowanie...";
+                window.location.href = result.redirect_url || "/success-page/";
+            } else {
+                // ZAMIAST ALERTU
+                pokazBlad("Twarz nie pasuje!");
+                setLoading(false);
+            }
+        } catch (err) {
+            pokazBlad("Błąd serwera");
+            setLoading(false);
+        }
+    }
+</script>
+</body>
+</html>
