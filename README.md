@@ -80,7 +80,7 @@ z_app/
 ### 🔐 Logowanie
 - **Skanowanie QR** — główna metoda logowania przez legitymację szkolną
 - **Logowanie ręczne** — podanie imienia i nazwiska (tryb debug / fallback)
-- **Logowanie przez Django backend** — docelowo przez OCR i biometrię twarzy (ngrok)
+- **Logowanie przez Django backend** — przez OCR i biometrię twarzy (ngrok)
 
 ---
 
@@ -129,7 +129,7 @@ npm run dev
 
 Aplikacja będzie dostępna na `http://localhost:3000`
 
-### 3. Backend Django (opcjonalne — OCR/biometria)
+### 3. Backend Django (OCR/biometria)
 ```bash
 cd z_app
 python -m venv venv
@@ -176,18 +176,16 @@ ngrok http 8000
 
 ## 🔮 Planowane Usprawnienia
 
-- [ ] Naprawienie integracji z ngrok (backend Django)
-- [ ] Paginacja w panelu użytkowników
-- [ ] Powiadomienia push w czasie rzeczywistym (Supabase Realtime)
-- [ ] Export danych do PDF/CSV z panelu raportów
-- [ ] Pełna obsługa OCR legitymacji przez EasyOCR
-- [ ] Drobne poprawki UX i kosmetyki
+- [ ] Interaktywna mapa szkoły z nawigacją po budynku
+- [ ] Aplikacja mobilna (iOS / Android)
+- [ ] Ogólne poprawki UX i rozbudowa istniejących funkcji
+- [ ] Nowe moduły rozszerzające możliwości platformy
 
 ---
 
-## 👨‍💻 Autor
+## 👨‍💻 Autorzy
 
-**Sebastian Dzięcielski** — [@sebastiandziecielski700-spec](https://github.com/sebastiandziecielski700-spec)
+**Sebastian Dzięcielski** & **Michał Czarnek**
 
 ---
 
