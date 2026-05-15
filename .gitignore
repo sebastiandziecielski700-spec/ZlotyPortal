@@ -43,6 +43,8 @@ next-env.d.ts
 # python
 venv/
 .venv/
+venv*/
+backend/venv*/
 zlota_apka/.venv/
 __pycache__/
 *.py[cod]
